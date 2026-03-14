@@ -11,8 +11,26 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Создаём приложение бота один раз при старте
+# Создаём приложение бота
 application = bot_main()
+
+async def init_and_start():
+    """Инициализация и запуск приложения."""
+    await application.initialize()
+    await application.start()
+    logger.info("✅ Application инициализирован и запущен")
+
+async def set_webhook():
+    """Установка вебхука."""
+    webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/webhook"
+    logger.info(f"Устанавливаем вебхук на {webhook_url}")
+    await application.bot.set_webhook(url=webhook_url)
+
+# Выполняем асинхронную инициализацию при старте
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+loop.run_until_complete(init_and_start())
+loop.run_until_complete(set_webhook())
 
 @app.route('/')
 @app.route('/health')
@@ -21,12 +39,11 @@ def health():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """Эндпоинт для приёма обновлений от Telegram"""
+    """Эндпоинт для приёма обновлений от Telegram."""
     update_data = request.get_json()
     logger.info(f"Получено обновление: {update_data}")
 
     try:
-        # Используем asyncio.run() для выполнения асинхронной обработки
         asyncio.run(application.process_update(update_data))
     except Exception as e:
         logger.error(f"Ошибка при обработке обновления: {e}")
@@ -35,14 +52,4 @@ def webhook():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-
-    # Устанавливаем вебхук при запуске
-    webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/webhook"
-    logger.info(f"Устанавливаем вебхук на {webhook_url}")
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(application.bot.set_webhook(url=webhook_url))
-
-    # Запускаем Flask
     app.run(host='0.0.0.0', port=port)
