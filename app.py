@@ -19,27 +19,30 @@ application = bot_main()
 def health():
     return jsonify({"status": "ok", "message": "Bot is running"}), 200
 
-@app.route(f'/webhook', methods=['POST'])
+@app.route('/webhook', methods=['POST'])
 def webhook():
     """Эндпоинт для приёма обновлений от Telegram"""
-    update = request.get_json()
-    logger.info(f"Получено обновление: {update}")
-    
-    # Обрабатываем обновление асинхронно
-    asyncio.create_task(application.process_update(update))
-    
+    update_data = request.get_json()
+    logger.info(f"Получено обновление: {update_data}")
+
+    try:
+        # Используем asyncio.run() для выполнения асинхронной обработки
+        asyncio.run(application.process_update(update_data))
+    except Exception as e:
+        logger.error(f"Ошибка при обработке обновления: {e}")
+
     return '', 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    
+
     # Устанавливаем вебхук при запуске
     webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/webhook"
     logger.info(f"Устанавливаем вебхук на {webhook_url}")
-    
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(application.bot.set_webhook(url=webhook_url))
-    
+
     # Запускаем Flask
     app.run(host='0.0.0.0', port=port)
