@@ -8,24 +8,20 @@ from database import Session, init_db, get_user, save_dream, get_last_dreams, sa
 from openai_client import ask_gpt, interpret_dream
 from dotenv import load_dotenv
 
-# Загружаем переменные окружения из .env
 load_dotenv()
 
-# Устанавливаем кодировку для вывода в консоль (Windows)
+# Устанавливаем кодировку для вывода в консоль
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
-# Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Инициализация базы данных
 init_db()
 
 def main_keyboard():
-    """Создаёт клавиатуру с основными кнопками."""
     keyboard = [
         [KeyboardButton("☀️ Доброе утро")],
         [KeyboardButton("🌙 Рассказать сон")],
@@ -39,7 +35,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with Session() as session:
         get_user(session, user.id, user.first_name, user.username)
     
-    # Устанавливаем имя Зинира для этого пользователя
     context.user_data['user_name'] = "Зинира"
     
     await update.message.reply_text(
@@ -56,8 +51,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "☀️ Желать доброго утра\n"
         "🌙 Толковать сны\n"
         "📖 Показывать историю снов\n"
-        "💬 Просто болтать и поддерживать\n"
-        "Используй кнопки меню для навигации."
+        "💬 Просто болтать и поддерживать"
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -65,18 +59,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_name = context.user_data.get('user_name', user.first_name or 'милая')
 
-    # Обработка нажатий на кнопки
     if text == "☀️ Доброе утро":
-        response = ask_gpt(
-            f"Напиши тёплое утреннее приветствие для {user_name}, "
-            "пожелай хорошего дня, скажи комплимент. Используй смайлики."
-        )
+        response = ask_gpt(f"Напиши тёплое утреннее приветствие для {user_name}, пожелай хорошего дня, скажи комплимент.")
         await update.message.reply_text(response)
 
     elif text == "🌙 Рассказать сон":
-        await update.message.reply_text(
-            "Расскажи мне свой сон в деталях. Я постараюсь его понять и истолковать ✨"
-        )
+        await update.message.reply_text("Расскажи мне свой сон в деталях. Я постараюсь его понять и истолковать ✨")
         context.user_data['expecting_dream'] = True
 
     elif text == "📖 Мои сны":
@@ -97,7 +85,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['expecting_chat'] = True
 
     else:
-        # Обычное сообщение
         if context.user_data.get('expecting_dream'):
             dream_text = text
             await update.message.reply_text("Дай-ка подумаю над твоим сном... 🔮")
@@ -117,21 +104,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['expecting_mood'] = False
 
         elif context.user_data.get('expecting_chat'):
-            response = ask_gpt(
-                f"{user_name} пишет: {text}\n"
-                "Ответь ей как заботливый друг Лучик."
-            )
+            response = ask_gpt(f"{user_name} пишет: {text}\nОтветь ей как заботливый друг Лучик.")
             await update.message.reply_text(response)
             context.user_data['expecting_chat'] = False
 
         else:
-            response = ask_gpt(
-                f"{user_name} пишет: {text}\n"
-                "Ответь ей как заботливый друг Лучик."
-            )
+            response = ask_gpt(f"{user_name} пишет: {text}\nОтветь ей как заботливый друг Лучик.")
             await update.message.reply_text(response)
 
 def main():
+    """Инициализация и запуск бота через вебхуки"""
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
         raise ValueError("Нет TELEGRAM_TOKEN в .env файле")
@@ -144,9 +126,4 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Запускаем бота
-    print("Бот запущен... Нажми Ctrl+C для остановки.")
-    application.run_polling()
-
-if __name__ == "__main__":
-    main()
+    return application
