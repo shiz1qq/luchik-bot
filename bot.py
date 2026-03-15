@@ -100,7 +100,8 @@ def main():
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
         raise ValueError("TELEGRAM_TOKEN не задан")
-    application = Application.builder().token(token).build()
+    # Отключаем встроенный Updater, так как мы используем вебхуки
+    application = Application.builder().token(token).updater(None).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
