@@ -9,8 +9,6 @@ from openai_client import ask_gpt, interpret_dream
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Устанавливаем кодировку для вывода в консоль
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
 logging.basicConfig(
@@ -34,25 +32,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     with Session() as session:
         get_user(session, user.id, user.first_name, user.username)
-    
     context.user_data['user_name'] = "Зинира"
-    
     await update.message.reply_text(
-        f"Привет, Зинира! 🌸\n"
-        "Я Лучик — твой друг и помощник. Я всегда рядом, чтобы поддержать, "
-        "выслушать твои сны и просто поболтать.\n"
-        "Выбирай, что хочешь сделать:",
+        f"Привет, Зинира! 🌸\nЯ Лучик — твой друг и помощник.\nВыбирай:",
         reply_markup=main_keyboard()
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Я умею:\n"
-        "☀️ Желать доброго утра\n"
-        "🌙 Толковать сны\n"
-        "📖 Показывать историю снов\n"
-        "💬 Просто болтать и поддерживать"
-    )
+    await update.message.reply_text("Я умею: ☀️ Доброе утро, 🌙 Толковать сны, 📖 История, 💬 Поболтать")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -64,16 +51,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(response)
 
     elif text == "🌙 Рассказать сон":
-        await update.message.reply_text("Расскажи мне свой сон в деталях. Я постараюсь его понять и истолковать ✨")
+        await update.message.reply_text("Расскажи свой сон...")
         context.user_data['expecting_dream'] = True
 
     elif text == "📖 Мои сны":
         with Session() as session:
             dreams = get_last_dreams(session, user.id, limit=5)
         if not dreams:
-            await update.message.reply_text("Ты пока не записывала свои сны. Расскажешь мне первый? 🌙")
+            await update.message.reply_text("Снов пока нет.")
         else:
-            msg = "Вот твои последние сны:\n"
+            msg = "Последние сны:\n"
             for d in dreams:
                 date = d.created_at.strftime("%d.%m")
                 preview = d.dream_text[:50] + "..." if len(d.dream_text) > 50 else d.dream_text
@@ -81,49 +68,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(msg)
 
     elif text == "💬 Просто поболтать":
-        await update.message.reply_text("О чём хочешь поговорить? Я слушаю 💬")
+        await update.message.reply_text("О чём поговорим?")
         context.user_data['expecting_chat'] = True
 
     else:
         if context.user_data.get('expecting_dream'):
             dream_text = text
-            await update.message.reply_text("Дай-ка подумаю над твоим сном... 🔮")
+            await update.message.reply_text("Думаю...")
             interpretation = interpret_dream(dream_text)
             with Session() as session:
                 save_dream(session, user.id, dream_text, interpretation)
             await update.message.reply_text(interpretation)
-            await update.message.reply_text("А какое у тебя сейчас настроение после этого сна?")
+            await update.message.reply_text("Какое настроение после сна?")
             context.user_data['expecting_dream'] = False
             context.user_data['expecting_mood'] = True
-
         elif context.user_data.get('expecting_mood'):
             mood = text
             with Session() as session:
                 save_mood(session, user.id, mood)
-            await update.message.reply_text("Спасибо, что поделилась, Зинира. Береги себя 💖")
+            await update.message.reply_text("Спасибо, Зинира! Береги себя.")
             context.user_data['expecting_mood'] = False
-
         elif context.user_data.get('expecting_chat'):
-            response = ask_gpt(f"{user_name} пишет: {text}\nОтветь ей как заботливый друг Лучик.")
+            response = ask_gpt(f"{user_name} пишет: {text}\nОтветь ей как друг.")
             await update.message.reply_text(response)
             context.user_data['expecting_chat'] = False
-
         else:
-            response = ask_gpt(f"{user_name} пишет: {text}\nОтветь ей как заботливый друг Лучик.")
+            response = ask_gpt(f"{user_name} пишет: {text}\nОтветь ей как друг.")
             await update.message.reply_text(response)
 
 def main():
-    """Инициализация и запуск бота через вебхуки"""
     token = os.getenv("TELEGRAM_TOKEN")
     if not token:
-        raise ValueError("Нет TELEGRAM_TOKEN в .env файле")
-
-    # Создаём приложение
+        raise ValueError("TELEGRAM_TOKEN не задан")
     application = Application.builder().token(token).build()
-
-    # Добавляем обработчики
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
     return application
